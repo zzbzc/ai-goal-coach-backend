@@ -2,7 +2,7 @@
 from .user import User
 from .goal import Goal, DailyTask
 from .checkin import Checkin
-from .partner import Partner, Challenge
+from .partner import Partner, Challenge, ChallengeParticipant
 
 __all__ = [
     "User",
@@ -11,4 +11,5 @@ __all__ = [
     "Checkin",
     "Partner",
     "Challenge",
+    "ChallengeParticipant",
 ]
