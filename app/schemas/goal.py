@@ -5,6 +5,38 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 
+class DailyTaskCreate(BaseModel):
+    """创建每日任务请求"""
+    day_number: int = Field(..., ge=1)
+    title: str = Field(..., min_length=1, max_length=255)
+    description: Optional[str] = None
+    estimated_minutes: Optional[int] = Field(None, ge=1)
+
+
+class DailyTaskUpdate(BaseModel):
+    """更新每日任务请求"""
+    title: Optional[str] = None
+    description: Optional[str] = None
+    status: Optional[str] = Field(None, pattern="^(pending|completed|skipped)$")
+    estimated_minutes: Optional[int] = None
+
+
+class DailyTaskResponse(BaseModel):
+    """每日任务响应"""
+    id: UUID
+    goal_id: UUID
+    day_number: int
+    title: str
+    description: Optional[str] = None
+    estimated_minutes: Optional[int] = None
+    status: str
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class GoalCreate(BaseModel):
     """创建目标请求"""
     title: str = Field(..., min_length=1, max_length=255)
@@ -14,6 +46,7 @@ class GoalCreate(BaseModel):
     end_date: date
     daily_time_available: str = Field(..., description="每天可用时间")
     experience_level: str = Field(..., description="经验水平")
+    tasks: Optional[List[DailyTaskCreate]] = Field(None, description="每日任务列表")
 
 
 class GoalUpdate(BaseModel):
@@ -53,33 +86,17 @@ class GoalListResponse(BaseModel):
     total: int
 
 
-class DailyTaskCreate(BaseModel):
-    """创建每日任务请求"""
-    day_number: int = Field(..., ge=1)
+class PlanGenerateRequest(BaseModel):
+    """AI 生成计划请求"""
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    estimated_minutes: Optional[int] = Field(None, ge=1)
+    duration_days: int = Field(..., ge=1, description="计划持续天数")
+    daily_time_available: str = Field(..., description="每天可用时间")
+    experience_level: str = Field(..., description="经验水平")
 
 
-class DailyTaskUpdate(BaseModel):
-    """更新每日任务请求"""
-    title: Optional[str] = None
-    description: Optional[str] = None
-    status: Optional[str] = Field(None, pattern="^(pending|completed|skipped)$")
-    estimated_minutes: Optional[int] = None
-
-
-class DailyTaskResponse(BaseModel):
-    """每日任务响应"""
-    id: UUID
-    goal_id: UUID
-    day_number: int
-    title: str
-    description: Optional[str] = None
-    estimated_minutes: Optional[int] = None
-    status: str
-    completed_at: Optional[datetime] = None
-    created_at: datetime
-
-    class Config:
-        from_attributes = True
+class PlanGenerateResponse(BaseModel):
+    """AI 生成计划响应"""
+    success: bool
+    plan: Optional[dict] = None
+    error: Optional[str] = None

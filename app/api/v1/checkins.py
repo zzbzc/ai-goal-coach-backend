@@ -17,7 +17,7 @@ from app.services.ai_coach import generate_checkin_feedback
 router = APIRouter()
 
 
-@router.post("/", response_model=CheckinResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CheckinResponse, status_code=status.HTTP_201_CREATED)
 async def create_checkin(
     checkin_in: CheckinCreate,
     db: Session = Depends(get_db),
@@ -88,7 +88,7 @@ async def create_checkin(
     return checkin
 
 
-@router.get("/", response_model=CheckinListResponse)
+@router.get("", response_model=CheckinListResponse)
 def get_checkins(
     goal_id: UUID = Query(None),
     skip: int = Query(0, ge=0),

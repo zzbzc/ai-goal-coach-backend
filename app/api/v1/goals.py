@@ -10,14 +10,15 @@ from app.models.user import User
 from app.models.goal import Goal, DailyTask
 from app.schemas.goal import (
     GoalCreate, GoalUpdate, GoalResponse, GoalListResponse,
-    DailyTaskResponse
+    DailyTaskCreate, DailyTaskResponse, PlanGenerateRequest, PlanGenerateResponse
 )
 from app.api.deps import get_current_user
+from app.services.ai_coach import generate_goal_plan
 
 router = APIRouter()
 
 
-@router.post("/", response_model=GoalResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=GoalResponse, status_code=status.HTTP_201_CREATED)
 def create_goal(
     goal_in: GoalCreate,
     db: Session = Depends(get_db),
@@ -47,10 +48,23 @@ def create_goal(
     db.commit()
     db.refresh(goal)
 
+    # 保存每日任务（如果有）
+    if goal_in.tasks:
+        for task_in in goal_in.tasks:
+            task = DailyTask(
+                goal_id=goal.id,
+                day_number=task_in.day_number,
+                title=task_in.title,
+                description=task_in.description,
+                estimated_minutes=task_in.estimated_minutes,
+            )
+            db.add(task)
+        db.commit()
+
     return goal
 
 
-@router.get("/", response_model=GoalListResponse)
+@router.get("", response_model=GoalListResponse)
 def get_goals(
     status_filter: Optional[str] = Query(None, alias="status"),
     skip: int = Query(0, ge=0),
@@ -168,3 +182,20 @@ def get_goal_tasks(
     ).order_by(DailyTask.day_number).all()
 
     return tasks
+
+
+@router.post("/plan/generate", response_model=PlanGenerateResponse)
+async def generate_plan(
+    plan_in: PlanGenerateRequest,
+    current_user: User = Depends(get_current_user)
+):
+    """AI 生成目标计划"""
+    result = await generate_goal_plan(
+        title=plan_in.title,
+        description=plan_in.description,
+        duration_days=plan_in.duration_days,
+        daily_time_available=plan_in.daily_time_available,
+        experience_level=plan_in.experience_level,
+    )
+
+    return result

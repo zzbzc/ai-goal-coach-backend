@@ -5,7 +5,7 @@ from .goals import router as goals_router
 from .checkins import router as checkins_router
 from .partners import router as partners_router
 
-api_router = APIRouter()
+api_router = APIRouter(redirect_slashes=False)
 
 api_router.include_router(auth_router, prefix="/auth", tags=["认证"])
 api_router.include_router(goals_router, prefix="/goals", tags=["目标"])
