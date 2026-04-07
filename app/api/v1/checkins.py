@@ -6,7 +6,7 @@ from datetime import datetime
 
 from app.database import get_db
 from app.models.user import User
-from app.models.goal import Goal
+from app.models.goal import Goal, DailyTask
 from app.models.checkin import Checkin
 from app.schemas.checkin import (
     CheckinCreate, CheckinResponse, CheckinListResponse
@@ -85,7 +85,37 @@ async def create_checkin(
     db.commit()
     db.refresh(checkin)
 
-    return checkin
+    # 获取更新后的 today_task（current_day + 1，因为 current_day=1 时应该显示第 2 天的任务）
+    today_task = db.query(DailyTask).filter(
+        DailyTask.goal_id == goal.id,
+        DailyTask.day_number == goal.current_day + 1
+    ).first()
+
+    # 计算进度百分比
+    progress = round(goal.current_day / goal.duration_days * 100, 1) if goal.duration_days > 0 else 0.0
+
+    # 构建目标信息
+    goal_data = {
+        "id": str(goal.id),
+        "current_day": goal.current_day,
+        "duration_days": goal.duration_days,
+        "progress": progress,
+        "today_task": today_task.title if today_task else None,
+    }
+
+    # 构建响应数据
+    return CheckinResponse(
+        id=checkin.id,
+        user_id=checkin.user_id,
+        goal_id=checkin.goal_id,
+        notes=checkin.notes,
+        mood_rating=checkin.mood_rating,
+        ai_feedback=checkin.ai_feedback,
+        ai_suggestion=checkin.ai_suggestion,
+        streak_count=checkin.streak_count,
+        created_at=checkin.created_at,
+        goal=goal_data,
+    )
 
 
 @router.get("", response_model=CheckinListResponse)
@@ -118,8 +148,24 @@ def get_checkins(
     # 获取当前连续打卡天数
     current_streak = get_current_streak(current_user.id, goal_id if goal_id else None, db)
 
+    # 手动构建 CheckinResponse 列表
+    items = []
+    for checkin in checkins:
+        items.append({
+            "id": checkin.id,
+            "user_id": checkin.user_id,
+            "goal_id": checkin.goal_id,
+            "notes": checkin.notes,
+            "mood_rating": checkin.mood_rating,
+            "ai_feedback": checkin.ai_feedback,
+            "ai_suggestion": checkin.ai_suggestion,
+            "streak_count": checkin.streak_count,
+            "created_at": checkin.created_at,
+            "goal": None,  # 列表接口不包含完整 goal 信息
+        })
+
     return CheckinListResponse(
-        items=checkins,
+        items=items,
         total=total,
         current_streak=current_streak
     )

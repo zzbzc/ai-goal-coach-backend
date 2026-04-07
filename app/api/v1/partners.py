@@ -15,7 +15,7 @@ from app.api.deps import get_current_user
 router = APIRouter()
 
 
-@router.get("/partners", response_model=List[PartnerResponse])
+@router.get("", response_model=List[PartnerResponse])
 def get_partners(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -42,7 +42,7 @@ def get_partners(
     return result
 
 
-@router.post("/partners/request")
+@router.post("/request")
 def send_partner_request(
     partner_username: str = Query(...),
     db: Session = Depends(get_db),

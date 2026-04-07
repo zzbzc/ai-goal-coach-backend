@@ -10,7 +10,7 @@ class DailyTaskCreate(BaseModel):
     day_number: int = Field(..., ge=1)
     title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    estimated_minutes: Optional[int] = Field(None, ge=1)
+    estimated_minutes: Optional[int] = Field(None, ge=0)
 
 
 class DailyTaskUpdate(BaseModel):
@@ -74,6 +74,7 @@ class GoalResponse(BaseModel):
     daily_time_available: Optional[str] = None
     experience_level: Optional[str] = None
     ai_plan: Optional[dict] = None
+    today_task: Optional[str] = None
     created_at: datetime
 
     class Config:
@@ -99,4 +100,5 @@ class PlanGenerateResponse(BaseModel):
     """AI 生成计划响应"""
     success: bool
     plan: Optional[dict] = None
+    reasoning: Optional[str] = Field(None, description="AI 的思考过程和分析")
     error: Optional[str] = None

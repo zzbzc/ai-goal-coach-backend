@@ -10,6 +10,25 @@ class UserCreate(BaseModel):
     email: EmailStr
     username: str = Field(..., min_length=3, max_length=50)
     password: str = Field(..., min_length=8)
+    verification_code: str = Field(..., min_length=6, max_length=6)
+
+
+class UserCreateNoVerification(BaseModel):
+    """用户注册请求（无验证码模式）"""
+    email: EmailStr
+    username: str = Field(..., min_length=3, max_length=50)
+    password: str = Field(..., min_length=8)
+
+
+class SendVerificationCodeRequest(BaseModel):
+    """发送验证码请求"""
+    email: EmailStr
+
+
+class VerifyEmailRequest(BaseModel):
+    """验证邮箱请求"""
+    email: EmailStr
+    verification_code: str = Field(..., min_length=6, max_length=6)
 
 
 class UserLogin(BaseModel):

@@ -7,14 +7,18 @@ from uuid import UUID
 from app.database import get_db
 from app.models.user import User
 from app.schemas.user import (
-    UserCreate, UserLogin, UserResponse, Token,
-    RefreshTokenRequest
+    UserCreate, UserCreateNoVerification, UserLogin, UserResponse, Token,
+    RefreshTokenRequest, SendVerificationCodeRequest, VerifyEmailRequest
 )
 from app.api.deps import get_current_user
 from app.core.security import (
     verify_password, get_password_hash,
     create_access_token, create_refresh_token, decode_token
 )
+from app.core.verification import (
+    send_verification_code, verify_code, store_verification_code
+)
+from app.core.email import send_verification_email
 from app.config import settings
 
 router = APIRouter()
@@ -22,7 +26,14 @@ router = APIRouter()
 
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserCreate, db: Session = Depends(get_db)):
-    """用户注册"""
+    """用户注册（需要邮箱验证码）"""
+    # 验证邮箱验证码
+    if not verify_code(user_in.email, user_in.verification_code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="邮箱验证码错误或已过期"
+        )
+
     # 检查邮箱是否已存在
     existing_user = db.query(User).filter(
         User.email == user_in.email
@@ -62,6 +73,49 @@ def register(user_in: UserCreate, db: Session = Depends(get_db)):
         refresh_token=refresh_token,
         user=UserResponse.model_validate(user)
     )
+
+
+@router.post("/send-verification-code")
+def send_code(request: SendVerificationCodeRequest, db: Session = Depends(get_db)):
+    """发送邮箱验证码
+
+    前端应在用户输入邮箱后调用此接口，用户收到验证码后再提交注册。
+    验证码 10 分钟内有效，每个邮箱每次只能有一个有效验证码。
+    """
+    # 检查邮箱是否已被注册
+    existing_user = db.query(User).filter(
+        User.email == request.email
+    ).first()
+    if existing_user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="该邮箱已被注册"
+        )
+
+    # 生成并存储验证码
+    code = send_verification_code(request.email)
+    if not store_verification_code(request.email, code):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="验证码存储失败"
+        )
+
+    return {"message": "验证码已发送到邮箱，10 分钟内有效"}
+
+
+@router.post("/verify-email")
+def verify_email(request: VerifyEmailRequest):
+    """验证邮箱验证码
+
+    可单独调用此接口验证验证码，也可在注册时直接提交 verification_code。
+    """
+    if not verify_code(request.email, request.verification_code):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="验证码错误或已过期"
+        )
+
+    return {"message": "邮箱验证成功"}
 
 
 @router.post("/login", response_model=Token)

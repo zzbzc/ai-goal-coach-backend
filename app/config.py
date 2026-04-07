@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
@@ -26,6 +26,19 @@ class Settings(BaseSettings):
 
     # CORS 配置
     BACKEND_CORS_ORIGINS: List[str] = []
+
+    # SMTP 邮件配置
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_TLS: bool = True
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM_EMAIL: Optional[str] = None
+
+    # Redis 配置
+    REDIS_HOST: Optional[str] = None
+    REDIS_PORT: int = 6379
+    REDIS_DB: int = 0
 
     class Config:
         env_file = ".env"

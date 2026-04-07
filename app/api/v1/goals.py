@@ -43,12 +43,14 @@ def create_goal(
         duration_days=duration_days,
         daily_time_available=goal_in.daily_time_available,
         experience_level=goal_in.experience_level,
+        current_day=0,  # 初始化为 0，表示还未开始打卡
     )
     db.add(goal)
     db.commit()
     db.refresh(goal)
 
     # 保存每日任务（如果有）
+    today_task = None
     if goal_in.tasks:
         for task_in in goal_in.tasks:
             task = DailyTask(
@@ -59,9 +61,15 @@ def create_goal(
                 estimated_minutes=task_in.estimated_minutes,
             )
             db.add(task)
+            # 获取第 1 天的任务作为 today_task
+            if task_in.day_number == 1:
+                today_task = task_in.title
         db.commit()
 
-    return goal
+    # 构建响应数据，添加 today_task 字段
+    response_data = GoalResponse.model_validate(goal)
+    response_data.today_task = today_task
+    return response_data
 
 
 @router.get("", response_model=GoalListResponse)
@@ -81,7 +89,20 @@ def get_goals(
     total = query.count()
     goals = query.order_by(Goal.created_at.desc()).offset(skip).limit(limit).all()
 
-    return GoalListResponse(items=goals, total=total)
+    # 为每个目标添加 today_task 字段
+    goals_with_today_task = []
+    for goal in goals:
+        response_data = GoalResponse.model_validate(goal)
+        # 获取当天的任务（current_day + 1，因为 current_day=0 时应该显示第 1 天的任务）
+        today_task = db.query(DailyTask).filter(
+            DailyTask.goal_id == goal.id,
+            DailyTask.day_number == goal.current_day + 1
+        ).first()
+        if today_task:
+            response_data.today_task = today_task.title
+        goals_with_today_task.append(response_data)
+
+    return GoalListResponse(items=goals_with_today_task, total=total)
 
 
 @router.get("/{goal_id}", response_model=GoalResponse)
@@ -102,7 +123,17 @@ def get_goal(
             detail="目标不存在"
         )
 
-    return goal
+    # 添加 today_task 字段
+    response_data = GoalResponse.model_validate(goal)
+    # 获取当天的任务（current_day + 1，因为 current_day=0 时应该显示第 1 天的任务）
+    today_task = db.query(DailyTask).filter(
+        DailyTask.goal_id == goal_id,
+        DailyTask.day_number == goal.current_day + 1
+    ).first()
+    if today_task:
+        response_data.today_task = today_task.title
+
+    return response_data
 
 
 @router.put("/{goal_id}", response_model=GoalResponse)

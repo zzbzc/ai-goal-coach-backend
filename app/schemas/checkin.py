@@ -29,9 +29,11 @@ class CheckinResponse(BaseModel):
     ai_suggestion: Optional[str] = None
     streak_count: int
     created_at: datetime
+    goal: Optional[dict] = None  # 更新后的目标信息
 
     class Config:
-        from_attributes = True
+        # 禁用 from_attributes，因为我们手动构建响应
+        from_attributes = False
 
 
 class CheckinListResponse(BaseModel):
